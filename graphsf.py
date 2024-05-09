@@ -31,67 +31,84 @@ def initialize_graph(num_nodes, graph_type, saturation=None):
 def print_graph(graph):
     if isinstance(graph, list) and all(isinstance(x, list) for x in graph):  # Matrix type
         print("  | " + " ".join(str(i + 1) for i in range(len(graph))))
-        print("--+" + "--" * len(graph))
+        print("--+" + "-" * 3 * len(graph))
         for i, row in enumerate(graph):
             print(f"{i + 1} | " + " ".join(str(val) for val in row))
     elif isinstance(graph, dict):  # List type
-        for node, edges in graph.items():
-            print(f"{node + 1}: {' '.join(str(edge + 1) for edge in edges)}")
+        # Ensure printing starts from node 1 and includes all nodes, even if they have no edges
+        max_node = max(graph.keys(), default=0)  # In case the dictionary is empty
+        for node in range(1, max_node + 1):
+            edges = " ".join(str(edge) for edge in graph.get(node, []))
+            print(f"{node}: {edges}")
     elif isinstance(graph, list) and all(isinstance(x, tuple) for x in graph):  # Table type
         print("Edges:")
         for src, dst in graph:
-            print(f"{src + 1} -> {dst + 1}")
+            print(f"{src} -> {dst}")
 
 
-def find_edge(graph, from_node, to_node):
-    try:
-        if isinstance(graph, list):  # Matrix type
-            exists = graph[from_node-1][to_node-1] > 0
-        else:  # List or table type
-            exists = to_node in graph[from_node]
-        print(f"{'True' if exists else 'False'}: edge ({from_node}, {to_node}) {'exists' if exists else 'does not exist'} in the Graph!")
-    except IndexError:
-        print("Error: Node number out of valid range.")
+
+
+def find_path(graph, from_node, to_node):
+    if isinstance(graph, list):
+        # Check if it's a matrix (2D list)
+        if all(isinstance(row, list) for row in graph):
+            # Matrix - assuming 0-indexed, adjust if 1-indexed
+            return graph[from_node - 1][to_node - 1] > 0
+        # Check if it's a table (list of tuples)
+        elif all(isinstance(edge, tuple) for edge in graph):
+            # Table - list of tuples (from, to)
+            return (from_node, to_node) in graph
+    elif isinstance(graph, dict):
+        # List - adjacency list
+        return to_node in graph.get(from_node, [])
+
+    return False
+
+
 
 
 def bfs(graph, start_node):
     from collections import deque
     visited = set()
-    queue = deque([start_node - 1])  # Adjust to 0-based for internal processing
+    queue = deque([start_node])
     bfs_order = []
 
     while queue:
         node = queue.popleft()
         if node not in visited:
             visited.add(node)
-            bfs_order.append(node + 1)  # Adjust back to 1-based for output
+            bfs_order.append(node)
+            # Handle graph types accordingly
             if isinstance(graph, list):  # Matrix handling
-                queue.extend(i for i, val in enumerate(graph[node]) if val > 0 and i not in visited)
+                queue.extend(i + 1 for i, val in enumerate(graph[node - 1]) if val > 0 and (i + 1) not in visited)
             elif isinstance(graph, dict):  # List handling
-                queue.extend(n - 1 for n in graph[node] if n - 1 not in visited)
+                queue.extend(n for n in graph.get(node, []) if n not in visited)
             elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table handling
-                neighbors = [e[1] - 1 for e in graph if e[0] - 1 == node]
-                queue.extend(n for n in neighbors if n not in visited)
+                neighbors = [dst for src, dst in graph if src == node and dst not in visited]
+                queue.extend(neighbors)
 
     return " ".join(map(str, bfs_order))
+
+
 
 def dfs(graph, start_node, visited=None):
     if visited is None:
         visited = set()
-    node = start_node - 1  # Adjust to 0-based for internal processing
-    if node not in visited:
+    if start_node not in visited:
         print(start_node, end=' ')
-        visited.add(node)
+        visited.add(start_node)
+        neighbors = []
         if isinstance(graph, list):  # Matrix handling
-            neighbors = [i for i, val in enumerate(graph[node]) if val > 0]
+            neighbors = [i + 1 for i, val in enumerate(graph[start_node - 1]) if val > 0]
         elif isinstance(graph, dict):  # List handling
-            neighbors = graph[node]
+            neighbors = graph.get(start_node, [])
         elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table handling
-            neighbors = [e[1] - 1 for e in graph if e[0] - 1 == node]
-
+            neighbors = [dst for src, dst in graph if src == start_node]
         for neighbor in neighbors:
             if neighbor not in visited:
-                dfs(graph, neighbor + 1, visited)
+                dfs(graph, neighbor, visited)
+
+
 
 
 
@@ -99,49 +116,49 @@ def dfs(graph, start_node, visited=None):
 def kahn_topological_sort(graph):
     from collections import deque
     in_degree = {}
-    if isinstance(graph, list):  # Matrix representation
-        in_degree = {i: 0 for i in range(len(graph))}
+    nodes = set()
+
+    if isinstance(graph, list) and all(isinstance(x, list) for x in graph):  # Matrix
+        nodes = set(range(1, len(graph)+1))
         for i in range(len(graph)):
             for j in range(len(graph[i])):
-                if graph[i][j] > 0:
-                    in_degree[j] += 1
-    elif isinstance(graph, dict):  # List representation
-        in_degree = {i: 0 for i in range(len(graph))}
-        for i in graph:
-            for j in graph[i]:
-                in_degree[j] += 1
-    elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table representation
+                in_degree[j+1] = in_degree.get(j+1, 0) + (1 if graph[i][j] > 0 else 0)
+    elif isinstance(graph, dict):  # List
+        nodes = set(graph.keys())
+        for node in graph:
+            for neighbor in graph[node]:
+                in_degree[neighbor] = in_degree.get(neighbor, 0) + 1
+    elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table
         nodes = set(x for e in graph for x in e)
-        in_degree = {node: 0 for node in nodes}
-        for (i, j) in graph:
-            in_degree[j] += 1
+        for src, dst in graph:
+            in_degree[dst] = in_degree.get(dst, 0) + 1
 
-    queue = deque([node for node in in_degree if in_degree[node] == 0])
+    queue = deque([node for node in nodes if in_degree.get(node, 0) == 0])
     sorted_order = []
-
     while queue:
         node = queue.popleft()
-        sorted_order.append(node + 1)
-        if isinstance(graph, list):  # Matrix
-            for neighbor in range(len(graph[node])):
-                if graph[node][neighbor] > 0:
+        sorted_order.append(node)
+        if isinstance(graph, list) and all(isinstance(x, list) for x in graph):  # Matrix
+            for neighbor in range(1, len(graph[node-1])+1):
+                if graph[node-1][neighbor-1] > 0:
                     in_degree[neighbor] -= 1
                     if in_degree[neighbor] == 0:
                         queue.append(neighbor)
         elif isinstance(graph, dict):  # List
-            for neighbor in graph[node]:
+            for neighbor in graph.get(node, []):
                 in_degree[neighbor] -= 1
                 if in_degree[neighbor] == 0:
                     queue.append(neighbor)
         elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table
-            for (_, neighbor) in filter(lambda e: e[0] == node, graph):
-                in_degree[neighbor] -= 1
-                if in_degree[neighbor] == 0:
-                    queue.append(neighbor)
+            for src, dst in filter(lambda e: e[0] == node, graph):
+                in_degree[dst] -= 1
+                if in_degree[dst] == 0:
+                    queue.append(dst)
 
-    if len(sorted_order) != len(in_degree):
+    if len(sorted_order) != len(nodes):
         raise Exception("Graph has at least one cycle, which prevents topological sorting.")
     return sorted_order
+
 
 
 def tarjan_scc(graph):
