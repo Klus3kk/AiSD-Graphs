@@ -54,7 +54,7 @@ def process_command(command, graph, graph_type):
     elif cmd == 'tarjan':
         print('Strongly Connected Components:', tarjan_scc(graph))
     elif cmd == 'export':
-        print(export_to_tikz(graph))
+        export_to_tikz(graph)
     elif cmd == 'exit':
         print('Exiting...')
         sys.exit(0)

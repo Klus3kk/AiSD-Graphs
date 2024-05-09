@@ -42,4 +42,8 @@ def export_to_tikz(graph):
             tikz_output += f"    \\path ({node_labels[src]}) edge node {{}} ({node_labels[dst]});\n"
 
     tikz_output += "\\end{tikzpicture}"
-    return tikz_output
+    file_name = input("Enter filename for TikZ output (without extension): ")
+    with open(f"{file_name}.tex", "w") as file:
+        file.write(tikz_output)
+    print(f"Graph exported to {file_name}.tex")
+

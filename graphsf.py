@@ -5,25 +5,28 @@ def initialize_graph(num_nodes, graph_type, saturation=None):
     if graph_type == 'matrix':
         graph = [[0] * num_nodes for _ in range(num_nodes)]
         if saturation:
+            # Ensure that we compare saturation correctly as a fraction
             for i in range(num_nodes):
-                for j in range(i + 1, num_nodes):
+                for j in range(num_nodes):  # Allow loops if i == j is allowed
                     if random.random() < saturation / 100.0:
                         graph[i][j] = 1
     elif graph_type == 'list':
-        graph = {i: [] for i in range(num_nodes)}
+        graph = {i + 1: [] for i in range(num_nodes)}
         if saturation:
-            for i in range(num_nodes):
-                for j in range(i + 1, num_nodes):
-                    if random.random() < saturation / 100.0:
+            for i in range(1, num_nodes + 1):
+                for j in range(1, num_nodes + 1):
+                    if i != j and random.random() < saturation / 100.0:
                         graph[i].append(j)
+
     elif graph_type == 'table':
         graph = []
         if saturation:
-            for i in range(num_nodes):
-                for j in range(i + 1, num_nodes):
-                    if random.random() < saturation / 100.0:
+            for i in range(1, num_nodes + 1):
+                for j in range(1, num_nodes + 1):
+                    if i != j and random.random() < saturation / 100.0:
                         graph.append((i, j))
     return graph
+
 
 
 
@@ -78,35 +81,42 @@ def bfs(graph, start_node):
         if node not in visited:
             visited.add(node)
             bfs_order.append(node)
-            # Handle graph types accordingly
-            if isinstance(graph, list):  # Matrix handling
-                queue.extend(i + 1 for i, val in enumerate(graph[node - 1]) if val > 0 and (i + 1) not in visited)
-            elif isinstance(graph, dict):  # List handling
-                queue.extend(n for n in graph.get(node, []) if n not in visited)
-            elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table handling
-                neighbors = [dst for src, dst in graph if src == node and dst not in visited]
-                queue.extend(neighbors)
+            if isinstance(graph, list) and all(isinstance(row, list) for row in graph):  # Matrix
+                # Ensure it accounts for 1-based indexing in user interaction
+                neighbors = [i + 1 for i, val in enumerate(graph[node - 1]) if val > 0]
+            elif isinstance(graph, dict):  # Adjacency list
+                # This already uses 1-based indexing
+                neighbors = graph.get(node, [])
+            elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Edge list (table)
+                neighbors = [dst for src, dst in graph if src == node]
+
+            for neighbor in neighbors:
+                if neighbor not in visited:
+                    queue.append(neighbor)
 
     return " ".join(map(str, bfs_order))
+
 
 
 
 def dfs(graph, start_node, visited=None):
     if visited is None:
         visited = set()
+
     if start_node not in visited:
         print(start_node, end=' ')
         visited.add(start_node)
-        neighbors = []
-        if isinstance(graph, list):  # Matrix handling
+        if isinstance(graph, list) and all(isinstance(row, list) for row in graph):  # Matrix
             neighbors = [i + 1 for i, val in enumerate(graph[start_node - 1]) if val > 0]
-        elif isinstance(graph, dict):  # List handling
+        elif isinstance(graph, dict):  # Adjacency list
             neighbors = graph.get(start_node, [])
-        elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table handling
+        elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Edge list (table)
             neighbors = [dst for src, dst in graph if src == start_node]
+
         for neighbor in neighbors:
             if neighbor not in visited:
                 dfs(graph, neighbor, visited)
+
 
 
 
@@ -177,13 +187,13 @@ def tarjan_scc(graph):
         stack.append(node)
         on_stack[node] = True
 
-        # Determine neighbors based on graph type
-        if isinstance(graph, list):  # Matrix handling
-            neighbors = [i for i, val in enumerate(graph[node]) if val > 0]
-        elif isinstance(graph, dict):  # List handling
-            neighbors = graph[node]
-        elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table handling
-            neighbors = [e[1] for e in graph if e[0] == node]
+        # Properly accessing neighbors depending on the graph type
+        if isinstance(graph, list):  # Matrix
+            neighbors = [i + 1 for i, val in enumerate(graph[node - 1]) if val > 0]  # Adjust for 1-based index
+        elif isinstance(graph, dict):  # Adjacency list
+            neighbors = graph.get(node, [])  # Safe access
+        elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Edge list (Table)
+            neighbors = [dst for src, dst in graph if src == node]
 
         for neighbor in neighbors:
             if neighbor not in indices:
@@ -192,20 +202,21 @@ def tarjan_scc(graph):
             elif on_stack[neighbor]:
                 low_links[node] = min(low_links[node], indices[neighbor])
 
+        # Identifying root of SCC and popping stack
         if low_links[node] == indices[node]:
             connected_component = []
             while True:
                 w = stack.pop()
                 on_stack[w] = False
-                connected_component.append(w + 1)  # Adjust back to 1-based for output
+                connected_component.append(w)
                 if w == node:
                     break
             scc.append(connected_component)
 
-    for node in range(len(graph)):  # Assumption: nodes are 0-indexed
+    # Ensure all nodes are processed
+    nodes = graph.keys() if isinstance(graph, dict) else range(1, len(graph) + 1)
+    for node in nodes:
         if node not in indices:
             strongconnect(node)
 
     return scc
-
-
