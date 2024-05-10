@@ -6,7 +6,7 @@ def display_help():
     print("\nAvailable commands:")
     print("Help       - Show this message")
     print("Find       - Print the edge of the graph from the selected node to the second selected node")
-    print("Print      - Print the graph in selected representation")        
+    print("Print      - Print the graph in selected representation")
     print("BFS        - Executes Breadth-First Search")
     print("DFS        - Executes Depth-First Search")
     print("Kahn       - Executes Kahn's algorithm for topological sorting.")
@@ -20,7 +20,6 @@ def process_command(command, graph, graph_type):
 
     if cmd == 'help':
         display_help()
-        
     elif cmd == 'find':
         try:
             from_node = int(input("from> "))
@@ -31,28 +30,36 @@ def process_command(command, graph, graph_type):
             print("Error: Both 'from' and 'to' nodes must be integers.")
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
-
-        
-    
     elif cmd == 'print':
         print_graph(graph)
-        
     elif cmd == 'bfs':
-        start_node = 1  # Default start node is 1
-        result = bfs(graph, start_node)
-        print(f"BFS order from node {start_node}:", result)
+        try:
+            start_node = int(input("Start node for BFS: "))
+            print(f"BFS order from node {start_node}: ", bfs(graph, start_node))
+        except ValueError:
+            print("Invalid input for the start node.")
+        except KeyError:
+            print(f"Node {start_node} does not exist in the graph.")
     elif cmd == 'dfs':
-        start_node = 1  # Default start node is 1
-        print(f"DFS order from node {start_node}: ", end='')
-        dfs(graph, start_node)
-        print()
+        try:
+            start_node = int(input("Start node for DFS: "))
+            print("DFS order from node {}: ".format(start_node), end='')
+            dfs(graph, start_node)
+            print()
+        except ValueError:
+            print("Invalid input for the start node.")
+        except KeyError:
+            print(f"Node {start_node} does not exist in the graph.")
     elif cmd == 'kahn':
         try:
-            print('Kahn Topological Sort:', kahn_topological_sort(graph))
+            print('Kahn:', kahn_topological_sort(graph))
         except Exception as e:
             print(f"Error: {e}")
     elif cmd == 'tarjan':
-        print('Strongly Connected Components:', tarjan_scc(graph))
+        try:
+            print('Tarjan:', tarjan_scc(graph))
+        except Exception as e:
+            print(f"Error: {e}")
     elif cmd == 'export':
         export_to_tikz(graph)
     elif cmd == 'exit':
@@ -79,7 +86,13 @@ def main():
             print("Invalid input. Please enter a valid integer for number of nodes.")
 
     if sys.argv[1] == '--generate':
-        saturation = float(input('saturation> '))
+        while True:
+            try:
+                saturation = float(input('saturation> '))
+                break
+            except ValueError:
+                print("Invalid input. Please enter a valid integer for saturation.")
+
         graph = initialize_graph(num_nodes, graph_type, saturation)
     else:
         graph = initialize_graph(num_nodes, graph_type)
@@ -114,7 +127,6 @@ def main():
                 except ValueError:
                     print("Invalid input. Please enter integer values only.")
 
-    
     while True:
         try:
             command = input('\naction> ')

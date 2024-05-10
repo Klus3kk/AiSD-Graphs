@@ -1,30 +1,13 @@
 import random
-
-def initialize_graph(num_nodes, graph_type, saturation=None):
+from collections import deque
+def initialize_graph(num_nodes, graph_type, saturation=0):  # Default saturation set to 0
     graph = None
     if graph_type == 'matrix':
-        graph = [[0] * num_nodes for _ in range(num_nodes)]
-        if saturation:
-            # Ensure that we compare saturation correctly as a fraction
-            for i in range(num_nodes):
-                for j in range(num_nodes):  # Allow loops if i == j is allowed
-                    if random.random() < saturation / 100.0:
-                        graph[i][j] = 1
+        graph = [[random.random() < saturation / 100.0 for _ in range(num_nodes)] for _ in range(num_nodes)]
     elif graph_type == 'list':
-        graph = {i + 1: [] for i in range(num_nodes)}
-        if saturation:
-            for i in range(1, num_nodes + 1):
-                for j in range(1, num_nodes + 1):
-                    if i != j and random.random() < saturation / 100.0:
-                        graph[i].append(j)
-
+        graph = {i + 1: [j for j in range(1, num_nodes + 1) if i != j - 1 and random.random() < saturation / 100.0] for i in range(num_nodes)}
     elif graph_type == 'table':
-        graph = []
-        if saturation:
-            for i in range(1, num_nodes + 1):
-                for j in range(1, num_nodes + 1):
-                    if i != j and random.random() < saturation / 100.0:
-                        graph.append((i, j))
+        graph = [(i, j) for i in range(1, num_nodes + 1) for j in range(1, num_nodes + 1) if i != j and random.random() < saturation / 100.0]
     return graph
 
 
@@ -33,10 +16,27 @@ def initialize_graph(num_nodes, graph_type, saturation=None):
 
 def print_graph(graph):
     if isinstance(graph, list) and all(isinstance(x, list) for x in graph):  # Matrix type
-        print("  | " + " ".join(str(i + 1) for i in range(len(graph))))
-        print("--+" + "-" * 3 * len(graph))
+        # Determine the maximum number of digits in the row and column indices
+        num_rows = len(graph)
+        max_index_digits = len(str(num_rows))
+
+        # Prepare the header for column indices
+        header = ' ' * (max_index_digits + 2)  # Space for row label on the left and the separator
+        for i in range(1, num_rows + 1):
+            header += f"{i:>{3}}"  # Allocating 3 spaces per column index
+
+        print(header)
+
+        # Print a separator
+        print('-' * (max_index_digits + 2) + '+' + '-' * (len(header) - max_index_digits - 2))
+
+        # Print each row of the matrix
         for i, row in enumerate(graph):
-            print(f"{i + 1} | " + " ".join(str(val) for val in row))
+            row_str = f"{i+1:>{max_index_digits}} |"  # Right-align the row index
+            for val in row:
+                row_str += f"{val:>{3}}"  # Right-align each matrix value in a field of width 3
+            print(row_str)
+            
     elif isinstance(graph, dict):  # List type
         # Ensure printing starts from node 1 and includes all nodes, even if they have no edges
         max_node = max(graph.keys(), default=0)  # In case the dictionary is empty
@@ -71,7 +71,6 @@ def find_path(graph, from_node, to_node):
 
 
 def bfs(graph, start_node):
-    from collections import deque
     visited = set()
     queue = deque([start_node])
     bfs_order = []
@@ -103,19 +102,30 @@ def dfs(graph, start_node, visited=None):
     if visited is None:
         visited = set()
 
-    if start_node not in visited:
-        print(start_node, end=' ')
-        visited.add(start_node)
-        if isinstance(graph, list) and all(isinstance(row, list) for row in graph):  # Matrix
-            neighbors = [i + 1 for i, val in enumerate(graph[start_node - 1]) if val > 0]
-        elif isinstance(graph, dict):  # Adjacency list
-            neighbors = graph.get(start_node, [])
-        elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Edge list (table)
-            neighbors = [dst for src, dst in graph if src == start_node]
+    stack = [start_node]
 
-        for neighbor in neighbors:
-            if neighbor not in visited:
-                dfs(graph, neighbor, visited)
+    while stack:
+        node = stack.pop()
+        if node not in visited:
+            print(node, end=' ')
+            visited.add(node)
+
+            # Gathering neighbors depending on the type of the graph
+            if isinstance(graph, list) and all(isinstance(row, list) for row in graph):
+                # Matrix representation: Collecting neighbors for 'node'
+                neighbors = [i + 1 for i, val in enumerate(graph[node - 1]) if val > 0]
+            elif isinstance(graph, dict):
+                # Adjacency list representation: Direct access to neighbors
+                neighbors = graph.get(node, [])
+            elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):
+                # Edge list (table) representation: Gathering neighbors for 'node'
+                neighbors = [dst for src, dst in graph if src == node]
+
+            # Since we want to visit the last discovered node first (to mimic recursion), we need to reverse the order
+            # of neighbors before pushing them onto the stack
+            for neighbor in reversed(neighbors):
+                if neighbor not in visited:
+                    stack.append(neighbor)
 
 
 
@@ -124,7 +134,6 @@ def dfs(graph, start_node, visited=None):
 
 
 def kahn_topological_sort(graph):
-    from collections import deque
     in_degree = {}
     nodes = set()
 
@@ -166,9 +175,8 @@ def kahn_topological_sort(graph):
                     queue.append(dst)
 
     if len(sorted_order) != len(nodes):
-        raise Exception("Graph has at least one cycle, which prevents topological sorting.")
+        raise Exception("Graph has at least one cycle, this prevents topological sorting.")
     return sorted_order
-
 
 
 def tarjan_scc(graph):
@@ -178,43 +186,53 @@ def tarjan_scc(graph):
     low_links = {}
     on_stack = {}
     scc = []
+    stack_sim = []  # Stack for simulating recursion
 
     def strongconnect(node):
         nonlocal index
-        indices[node] = index
-        low_links[node] = index
+        indices[node] = low_links[node] = index
         index += 1
         stack.append(node)
         on_stack[node] = True
+        stack_sim.append((node, 0))  # (current node, next neighbor index to process)
 
-        # Properly accessing neighbors depending on the graph type
-        if isinstance(graph, list):  # Matrix
-            neighbors = [i + 1 for i, val in enumerate(graph[node - 1]) if val > 0]  # Adjust for 1-based index
-        elif isinstance(graph, dict):  # Adjacency list
-            neighbors = graph.get(node, [])  # Safe access
-        elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Edge list (Table)
-            neighbors = [dst for src, dst in graph if src == node]
+        while stack_sim:
+            current_node, i = stack_sim.pop()
+            if i == 0:  # Ensure indices are only set when the node is first processed
+                if current_node not in indices:
+                    indices[current_node] = low_links[current_node] = index
+                    index += 1
+                    stack.append(current_node)
+                    on_stack[current_node] = True
 
-        for neighbor in neighbors:
-            if neighbor not in indices:
-                strongconnect(neighbor)
-                low_links[node] = min(low_links[node], low_links[neighbor])
-            elif on_stack[neighbor]:
-                low_links[node] = min(low_links[node], indices[neighbor])
+            neighbors = []
+            if isinstance(graph, list) and all(isinstance(row, list) for row in graph):  # Matrix
+                neighbors = [j for j, val in enumerate(graph[current_node]) if val > 0]
+            elif isinstance(graph, dict):  # Adjacency list
+                neighbors = graph.get(current_node, [])
+            elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Edge list
+                neighbors = [dst for src, dst in graph if src == current_node]
 
-        # Identifying root of SCC and popping stack
-        if low_links[node] == indices[node]:
-            connected_component = []
-            while True:
-                w = stack.pop()
-                on_stack[w] = False
-                connected_component.append(w)
-                if w == node:
+            for j in range(i, len(neighbors)):
+                neighbor = neighbors[j]
+                if neighbor not in indices:
+                    stack_sim.append((current_node, j+1))  # Save state and process neighbor
+                    stack_sim.append((neighbor, 0))
                     break
-            scc.append(connected_component)
+                elif on_stack[neighbor]:
+                    low_links[current_node] = min(low_links[current_node], indices[neighbor])
+            else:  # Post-processing after all neighbors
+                if low_links[current_node] == indices[current_node]:
+                    connected_component = []
+                    while stack:
+                        w = stack.pop()
+                        on_stack[w] = False
+                        connected_component.append(w)
+                        if w == current_node:
+                            break
+                    scc.append(connected_component)
 
-    # Ensure all nodes are processed
-    nodes = graph.keys() if isinstance(graph, dict) else range(1, len(graph) + 1)
+    nodes = range(1,len(graph)+1) if isinstance(graph, list) else graph.keys()
     for node in nodes:
         if node not in indices:
             strongconnect(node)
