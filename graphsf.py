@@ -40,9 +40,6 @@ def print_graph(graph):
         for src, dst in graph:
             print(f"{src} -> {dst}")
 
-
-
-
 def find_path(graph, from_node, to_node):
     if isinstance(graph, list):
         if all(isinstance(row, list) for row in graph):
@@ -53,8 +50,6 @@ def find_path(graph, from_node, to_node):
         return to_node in graph.get(from_node, [])
 
     return False
-
-
 
 
 def bfs(graph, start_node):
@@ -80,9 +75,6 @@ def bfs(graph, start_node):
 
     return " ".join(map(str, bfs_order))
 
-
-
-
 def dfs(graph, start_node, visited=None):
     if visited is None:
         visited = set()
@@ -105,12 +97,6 @@ def dfs(graph, start_node, visited=None):
             for neighbor in reversed(neighbors):
                 if neighbor not in visited:
                     stack.append(neighbor)
-
-
-
-
-
-
 
 def kahn_topological_sort(graph):
     in_degree = {}
@@ -173,7 +159,6 @@ def tarjan_scc(graph):
         recursion_stack.append(node)
         in_stack[node] = True
 
-        # Determine neighbors based on the graph representation
         neighbors = []
         if isinstance(graph, list) and all(isinstance(row, list) for row in graph):  # Matrix
             neighbors = [j + 1 for j, val in enumerate(graph[node - 1]) if val > 0]

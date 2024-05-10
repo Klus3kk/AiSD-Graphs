@@ -123,7 +123,7 @@ def main():
                             graph[i] = input_nodes
                         elif graph_type == 'table':
                             for j in input_nodes:
-                                graph.append((i, j))  # Directly appending without modifying indices
+                                graph.append((i, j))  
                 except ValueError:
                     print("Invalid input. Please enter integer values only.")
 
