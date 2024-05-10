@@ -154,66 +154,62 @@ def kahn_topological_sort(graph):
                     queue.append(dst)
 
     if len(sorted_order) != len(nodes):
-        raise Exception("ERROR: Graph has at least one cycle")
+        raise Exception("Graph has at least one cycle")
     return sorted_order
 
 
 def tarjan_scc(graph):
-    index = 0
-    stack = []
-    indices = {}
-    low_links = {}
-    on_stack = {}
-    scc = []
-    stack_sim = []  
+    current_index = 0
+    recursion_stack = []
+    node_indices = {}
+    lowest_links = {}
+    in_stack = {}
+    components = []
 
-    def strongconnect(node):
-        nonlocal index
-        indices[node] = low_links[node] = index
-        index += 1
-        stack.append(node)
-        on_stack[node] = True
-        stack_sim.append((node, 0))  
+    def explore_node(node):
+        nonlocal current_index
+        node_indices[node] = lowest_links[node] = current_index
+        current_index += 1
+        recursion_stack.append(node)
+        in_stack[node] = True
 
-        while stack_sim:
-            current_node, i = stack_sim.pop()
-            if i == 0:  
-                if current_node not in indices:
-                    indices[current_node] = low_links[current_node] = index
-                    index += 1
-                    stack.append(current_node)
-                    on_stack[current_node] = True
+        # Determine neighbors based on the graph representation
+        neighbors = []
+        if isinstance(graph, list) and all(isinstance(row, list) for row in graph):  # Matrix
+            neighbors = [j + 1 for j, val in enumerate(graph[node - 1]) if val > 0]
+        elif isinstance(graph, dict):  # List
+            neighbors = graph.get(node, [])
+        elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table 
+            neighbors = [destination for source, destination in graph if source == node]
 
-            neighbors = []
-            if isinstance(graph, list) and all(isinstance(row, list) for row in graph):  # Matrix
-                neighbors = [j for j, val in enumerate(graph[current_node]) if val > 0]
-            elif isinstance(graph, dict):  # List
-                neighbors = graph.get(current_node, [])
-            elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):  # Table
-                neighbors = [dst for src, dst in graph if src == current_node]
+        for neighbor in neighbors:
+            if neighbor not in node_indices:
+                explore_node(neighbor)
+                lowest_links[node] = min(lowest_links[node], lowest_links[neighbor])
+            elif in_stack[neighbor]:
+                lowest_links[node] = min(lowest_links[node], node_indices[neighbor])
 
-            for j in range(i, len(neighbors)):
-                neighbor = neighbors[j]
-                if neighbor not in indices:
-                    stack_sim.append((current_node, j+1))  
-                    stack_sim.append((neighbor, 0))
+        if lowest_links[node] == node_indices[node]:
+            component = []
+            while True:
+                w = recursion_stack.pop()
+                in_stack[w] = False
+                component.append(w)
+                if w == node:
                     break
-                elif on_stack[neighbor]:
-                    low_links[current_node] = min(low_links[current_node], indices[neighbor])
-            else:  
-                if low_links[current_node] == indices[current_node]:
-                    connected_component = []
-                    while stack:
-                        w = stack.pop()
-                        on_stack[w] = False
-                        connected_component.append(w)
-                        if w == current_node:
-                            break
-                    scc.append(connected_component)
+            components.append(component)
 
-    nodes = range(1,len(graph)+1) if isinstance(graph, list) else graph.keys()
-    for node in nodes:
-        if node not in indices:
-            strongconnect(node)
+    if isinstance(graph, list) and all(isinstance(row, list) for row in graph):
+        node_set = range(1, len(graph) + 1)
+    elif isinstance(graph, dict):
+        node_set = graph.keys()
+    elif isinstance(graph, list) and all(isinstance(e, tuple) for e in graph):
+        node_set = set(src for src, _ in graph).union(dst for _, dst in graph)
 
-    return scc
+    for node in node_set:
+        if node not in node_indices:
+            explore_node(node)
+
+    return components
+
+    
