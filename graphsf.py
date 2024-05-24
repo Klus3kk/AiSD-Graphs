@@ -3,7 +3,12 @@ from collections import deque
 def initialize_graph(num_nodes, graph_type, saturation=0):  
     graph = None
     if graph_type == 'matrix':
-        graph = [[random.random() < saturation / 100.0 for _ in range(num_nodes)] for _ in range(num_nodes)]
+        # Initialize an empty matrix with all zeros
+        graph = [[0 for _ in range(num_nodes)] for _ in range(num_nodes)]
+        # Fill the upper triangular part of the matrix based on the saturation probability
+        for i in range(num_nodes):
+            for j in range(i + 1, num_nodes):  # Ensure upper triangular (j > i)
+                graph[i][j] = 1 if random.random() < saturation / 100.0 else 0
     elif graph_type == 'list':
         graph = {i + 1: [j for j in range(1, num_nodes + 1) if i != j - 1 and random.random() < saturation / 100.0] for i in range(num_nodes)}
     elif graph_type == 'table':

@@ -12,7 +12,7 @@ def display_help():
     print("Kahn       - Executes Kahn's algorithm for topological sorting.")
     print("Tarjan     - Executes Tarjan's algorithm to find strongly connected components.")
     print("Export     - Export the graph to TikZ picture")
-    print("Exit       - Exit the program (same as ctrl+C)")
+    print("Exit       - Exit the program (same as Ctrl+C)")
 
 def process_command(command, graph, graph_type):
     args = command.split()
